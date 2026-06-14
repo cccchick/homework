@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>低碳随手拍</title>
+    <!-- ECharts 图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        /* ===================== 全局变量与基础样式 ===================== */
+        :root {
+            --primary-green: #2ecc71;
+            --dark-green: #27ae60;
+            --light-green: #d5f5e3;
+            --bg-gradient-start: #e8f8f5;
+            --bg-gradient-end: #d5f5e3;
+            --wasteful-color: #e74c3c;
+            --energy-color: #27ae60;
+            --neutral-color: #95a5a6;
+            --text-dark: #2c3e50;
+            --text-light: #7f8c8d;
+            --white: #ffffff;
+            --shadow: 0 4px 20px rgba(46, 204, 113, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            min-height: 100vh;
+            color: var(--text-dark);
+            overflow-x: hidden;
+        }
+
+        /* 页面容器：默认隐藏，激活时淡入 */
+        .page {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+            padding: 20px;
+        }
+
+        .page.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .page.fade-out {
+            opacity: 0;
+        }
+
+        /* ===================== 通用组件 ===================== */
+        .container {
+            max-width: 420px;
+            margin: 0 auto;
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .card {
+            background: var(--white);
+            border-radius: 24px;
+            padding: 32px 24px;
+            width: 100%;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 8px 0;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            color: var(--white);
+            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(46, 204, 113, 0.5);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-outline {
+            background: var(--white);
+            color: var(--dark-green);
+            border: 2px solid var(--primary-green);
+        }
+
+        .btn-outline:hover {
+            background: var(--light-green);
+        }
+
+        .btn-large {
+            height: 140px;
+            flex-direction: column;
+            font-size: 20px;
+            border-radius: 20px;
+        }
+
+        .btn-large .icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .btn-location {
+            background: var(--white);
+            color: var(--text-dark);
+            border: 2px solid var(--light-green);
+            font-size: 18px;
+        }
+
+        .btn-location:hover, .btn-location.selected {
+            background: var(--primary-green);
+            color: var(--white);
+            border-color: var(--primary-green);
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--dark-green);
+            margin-bottom: 12px;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: var(--text-light);
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
+        /* ===================== 欢迎页 ===================== */
+        .welcome-page .logo {
+            width: 160px;
+            height: 160px;
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 32px;
+            box-shadow: 0 8px 30px rgba(46, 204, 113, 0.3);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .welcome-page .logo span {
+            font-size: 80px;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+
+        /* ===================== 上传页 ===================== */
+        .upload-preview {
+            width: 100%;
+            height: 280px;
+            border-radius: 20px;
+            background: var(--light-green);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            overflow: hidden;
+            border: 2px dashed var(--primary-green);
+        }
+
+        .upload-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .upload-placeholder {
+            text-align: center;
+            color: var(--text-light);
+        }
+
+        .upload-placeholder .icon {
+            font-size: 64px;
+            margin-bottom: 12px;
+        }
+
+        .upload-buttons {
+            display: flex;
+            gap: 16px;
+            width: 100%;
+        }
+
+        .upload-buttons .btn {
+            flex: 1;
+            margin: 0;
+        }
+
+        /* ===================== 分析页 ===================== */
+        .analysis-page .preview-container {
+            position: relative;
+            width: 100%;
+            max-width: 320px;
+            height: 320px;
+            margin: 0 auto 24px;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .analysis-page .preview-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* 绿色扫描线动画 */
+        .scan-line {
+            position: absolute;
+            top: -10px;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                rgba(46, 204, 113, 0.8) 20%,
+                rgba(46, 204, 113, 1) 50%,
+                rgba(46, 204, 113, 0.8) 80%,
+                transparent 100%
+            );
+            box-shadow: 0 0 12px rgba(46, 204, 113, 0.8), 0 0 24px rgba(46, 204, 113, 0.5);
+            animation: scan 2s linear infinite;
+            z-index: 10;
+        }
+
+        .scan-line::after {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: linear-gradient(180deg,
+                rgba(46, 204, 113, 0.3) 0%,
+                transparent 100%
+            );
+        }
+
+        @keyframes scan {
+            0% { top: -10%; }
+            100% { top: 110%; }
+        }
+
+        .scan-corner {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--primary-green);
+            z-index: 10;
+        }
+
+        .scan-corner.tl { top: 10px; left: 10px; border-right: none; border-bottom: none; }
+        .scan-corner.tr { top: 10px; right: 10px; border-left: none; border-bottom: none; }
+        .scan-corner.bl { bottom: 10px; left: 10px; border-right: none; border-top: none; }
+        .scan-corner.br { bottom: 10px; right: 10px; border-left: none; border-top: none; }
+
+        .analysis-status {
+            font-size: 20px;
+            color: var(--dark-green);
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .analysis-detail {
+            font-size: 14px;
+            color: var(--text-light);
+            line-height: 1.8;
+        }
+
+        /* ===================== 结果页 ===================== */
+        .result-page .container {
+            padding-top: 40px;
+        }
+
+        .result-card {
+            border-radius: 28px;
+            padding: 40px 24px;
+            width: 100%;
+            text-align: center;
+            color: var(--white);
+            box-shadow: var(--shadow);
+            transition: background 0.4s ease;
+        }
+
+        .result-card.wasteful {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        .result-card.energy-saving {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+        }
+
+        .result-card.neutral {
+            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+        }
+
+        .result-emoji {
+            font-size: 80px;
+            margin-bottom: 16px;
+            animation: bounce 0.8s ease;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        .result-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .result-desc {
+            font-size: 16px;
+            opacity: 0.95;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
+        .score-box {
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .score-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .score-value {
+            font-size: 48px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .result-actions .btn {
+            flex: 1;
+            margin: 0;
+        }
+
+        .result-actions .btn-secondary {
+            background: rgba(255, 255, 255, 0.3);
+            color: var(--white);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .result-actions .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.45);
+        }
+
+        /* ===================== 地点页 ===================== */
+        .location-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            width: 100%;
+            margin-bottom: 24px;
+        }
+
+        .location-grid .btn {
+            margin: 0;
+            height: 100px;
+            flex-direction: column;
+        }
+
+        .location-grid .btn .icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        /* ===================== 数据页 ===================== */
+        .stats-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .total-score {
+            font-size: 56px;
+            font-weight: 700;
+            color: var(--dark-green);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .total-label {
+            font-size: 16px;
+            color: var(--text-light);
+        }
+
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            width: 100%;
+            margin-bottom: 24px;
+        }
+
+        .stat-item {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 16px 8px;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--dark-green);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+
+        #heatmapChart {
+            width: 100%;
+            height: 320px;
+            background: var(--white);
+            border-radius: 20px;
+            padding: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        .bottom-actions {
+            width: 100%;
+            margin-top: 24px;
+        }
+
+        /* ===================== 隐藏文件输入框 ===================== */
+        #fileInput {
+            display: none;
+        }
+
+        /* ===================== 响应式微调 ===================== */
+        @media (max-height: 700px) {
+            .card { padding: 24px 20px; }
+            .btn-large { height: 120px; }
+            .upload-preview { height: 220px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 隐藏的文件输入框：用于拍照和选图 -->
+    <input type="file" id="fileInput" accept="image/*">
+    <input type="file" id="cameraInput" accept="image/*" capture="environment">
+
+    <!-- ===================== 1. 欢迎页 ===================== -->
+    <section class="page welcome-page active" id="welcomePage">
+        <div class="container">
+            <div class="card">
+                <!-- 修改这里换图标 -->
+                <div class="logo"><span>🌱</span></div>
+                <!-- 修改这里换项目名称 -->
+                <h1 class="title">低碳随手拍</h1>
+                <!-- 修改这里换副标题 -->
+                <p class="subtitle">
+                    用镜头记录校园里的低碳瞬间<br>
+                    每一次随手拍，都是一次绿色行动
+                </p>
+                <!-- 修改这里换按钮文字 -->
+                <button class="btn btn-primary" onclick="goToPage('uploadPage')">
+                    开始行动
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== 2. 上传页 ===================== -->
+    <section class="page upload-page" id="uploadPage">
+        <div class="container">
+            <div class="card">
+                <h2 class="title">上传照片</h2>
+                <p class="subtitle">拍下身边的低碳或浪费现象</p>
+
+                <div class="upload-preview" id="uploadPreview">
+                    <div class="upload-placeholder">
+                        <div class="icon">📸</div>
+                        <div>等待上传...</div>
+                    </div>
+                </div>
+
+                <div class="upload-buttons">
+                    <!-- 拍照按钮 -->
+                    <button class="btn btn-primary btn-large" onclick="openCamera()">
+                        <span class="icon">📷</span>
+                        <span>拍照</span>
+                    </button>
+                    <!-- 选图按钮 -->
+                    <button class="btn btn-outline btn-large" onclick="openGallery()">
+                        <span class="icon">🖼️</span>
+                        <span>选图</span>
+                    </button>
+                </div>
+
+                <button class="btn btn-outline" style="margin-top: 16px;" onclick="goToPage('welcomePage')">
+                    返回
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== 3. 分析页 ===================== -->
+    <section class="page analysis-page" id="analysisPage">
+        <div class="container">
+            <div class="card">
+                <h2 class="title">AI 分析中</h2>
+                <p class="subtitle">绿色算法正在识别图片特征</p>
+
+                <div class="preview-container">
+                    <img id="analysisImg" src="" alt="待分析图片">
+                    <div class="scan-line"></div>
+                    <div class="scan-corner tl"></div>
+                    <div class="scan-corner tr"></div>
+                    <div class="scan-corner bl"></div>
+                    <div class="scan-corner br"></div>
+                </div>
+
+                <!-- 修改这里换状态文字 -->
+                <div class="analysis-status" id="analysisStatus">AI分析中...</div>
+                <div class="analysis-detail" id="analysisDetail">
+                    提取图像特征：亮度、RGB分布、饱和度...
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== 4. 结果页 ===================== -->
+    <section class="page result-page" id="resultPage">
+        <div class="container">
+            <div class="result-card" id="resultCard">
+                <!-- 修改这里换结果emoji -->
+                <div class="result-emoji" id="resultEmoji">🌿</div>
+                <!-- 修改这里换结果标题 -->
+                <h2 class="result-title" id="resultTitle">分析完成</h2>
+                <!-- 修改这里换结果描述 -->
+                <p class="result-desc" id="resultDesc">正在生成结果...</p>
+
+                <div class="score-box">
+                    <div class="score-label">本次获得积分</div>
+                    <!-- 数字滚动动画将应用在这个元素上 -->
+                    <div class="score-value" id="scoreValue">0</div>
+                </div>
+
+                <div class="result-actions">
+                    <button class="btn btn-secondary" onclick="goToPage('uploadPage')">
+                        再拍一张
+                    </button>
+                    <button class="btn btn-primary" onclick="goToPage('locationPage')">
+                        标记地点
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== 5. 地点页 ===================== -->
+    <section class="page location-page" id="locationPage">
+        <div class="container">
+            <div class="card">
+                <h2 class="title">选择地点</h2>
+                <p class="subtitle">这张照片拍摄于哪里？</p>
+
+                <div class="location-grid">
+                    <!-- 修改这里换地点名称或图标 -->
+                    <button class="btn btn-location" data-location="教学楼" onclick="selectLocation(this)">
+                        <span class="icon">🏫</span>
+                        <span>教学楼</span>
+                    </button>
+                    <button class="btn btn-location" data-location="食堂" onclick="selectLocation(this)">
+                        <span class="icon">🍽️</span>
+                        <span>食堂</span>
+                    </button>
+                    <button class="btn btn-location" data-location="宿舍" onclick="selectLocation(this)">
+                        <span class="icon">🏠</span>
+                        <span>宿舍</span>
+                    </button>
+                    <button class="btn btn-location" data-location="图书馆" onclick="selectLocation(this)">
+                        <span class="icon">📚</span>
+                        <span>图书馆</span>
+                    </button>
+                    <button class="btn btn-location" data-location="其他" onclick="selectLocation(this)" style="grid-column: span 2;">
+                        <span class="icon">📍</span>
+                        <span>其他</span>
+                    </button>
+                </div>
+
+                <button class="btn btn-primary" id="confirmLocationBtn" onclick="confirmLocation()" disabled>
+                    确认并查看数据
+                </button>
+                <button class="btn btn-outline" onclick="goToPage('resultPage')">
+                    返回
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== 6. 数据页 ===================== -->
+    <section class="page data-page" id="dataPage">
+        <div class="container">
+            <div class="card">
+                <h2 class="title">我的低碳数据</h2>
+                <p class="subtitle">绿色行动，点滴积累</p>
+
+                <div class="stats-header">
+                    <div class="total-score" id="totalScore">0</div>
+                    <div class="total-label">累计积分</div>
+                </div>
+
+                <div class="stats-cards">
+                    <div class="stat-item">
+                        <div class="stat-value" id="countValue">0</div>
+                        <div class="stat-label">提交次数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="energyValue">0</div>
+                        <div class="stat-label">节能行为</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="wasteValue">0</div>
+                        <div class="stat-label">浪费行为</div>
+                    </div>
+                </div>
+
+                <!-- ECharts 校园热力图容器 -->
+                <div id="heatmapChart"></div>
+
+                <div class="bottom-actions">
+                    <button class="btn btn-primary" onclick="goToPage('uploadPage')">
+                        继续拍照
+                    </button>
+                    <button class="btn btn-outline" onclick="goToPage('welcomePage')">
+                        返回首页
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // ===================== 全局状态 =====================
+        const appState = {
+            currentImage: null,        // 当前上传的图片 DataURL
+            currentResult: 'neutral',  // 当前分析结果：wasteful / energy-saving / neutral
+            currentScore: 0,           // 本次得分
+            selectedLocation: '',      // 选中的地点
+            records: loadRecords()     // 从 localStorage 读取历史记录
+        };
+
+        // ===================== 后端 API 配置 =====================
+        // 修改这里换成你的后端地址；本地开发用空字符串 '' 表示同域
+        // 部署到服务器后改为：'https://你的域名.com' 或 'http://服务器IP:端口'
+        const API_BASE_URL = '';
+
+        // 修改这里换结果配置（文字、emoji、颜色、描述）
+        const RESULT_CONFIG = {
+            'wasteful': {
+                emoji: '⚠️',
+                title: '发现浪费行为',
+                desc: '检测到长明灯、长流水或外卖盒堆积等现象，请注意节约资源。',
+                score: -10,
+                class: 'wasteful'
+            },
+            'energy-saving': {
+                emoji: '🌱',
+                title: '节能行为点赞',
+                desc: '检测到光盘、人走灯关或自带水杯等低碳行为，继续保持！',
+                score: 10,
+                class: 'energy-saving'
+            },
+            'neutral': {
+                emoji: '😐',
+                title: '中性场景',
+                desc: '未能明确识别低碳或浪费特征，欢迎再次尝试拍摄更清晰的照片。',
+                score: 0,
+                class: 'neutral'
+            }
+        };
+
+        // ===================== 工具函数 =====================
+
+        /**
+         * 页面切换：带淡入淡出动画
+         * @param {string} targetId - 目标页面 ID
+         */
+        function goToPage(targetId) {
+            const currentPage = document.querySelector('.page.active');
+            const targetPage = document.getElementById(targetId);
+
+            if (currentPage) {
+                currentPage.classList.add('fade-out');
+                setTimeout(() => {
+                    currentPage.classList.remove('active', 'fade-out');
+                    targetPage.classList.add('active');
+                    // 页面进入后的特殊处理
+                    if (targetId === 'dataPage') {
+                        renderDataPage();
+                    }
+                }, 400);
+            } else {
+                targetPage.classList.add('active');
+            }
+        }
+
+        /**
+         * 从 localStorage 读取历史记录
+         */
+        function loadRecords() {
+            try {
+                const data = localStorage.getItem('lowcarbon_records');
+                return data ? JSON.parse(data) : [];
+            } catch (e) {
+                console.warn('读取 localStorage 失败', e);
+                return [];
+            }
+        }
+
+        /**
+         * 保存历史记录到 localStorage
+         */
+        function saveRecords() {
+            try {
+                localStorage.setItem('lowcarbon_records', JSON.stringify(appState.records));
+            } catch (e) {
+                console.warn('保存 localStorage 失败', e);
+            }
+        }
+
+        /**
+         * 数字滚动动画
+         * @param {HTMLElement} element - 目标元素
+         * @param {number} target - 目标数值
+         * @param {number} duration - 动画时长（毫秒）
+         */
+        function animateNumber(element, target, duration = 1000) {
+            const start = 0;
+            const startTime = performance.now();
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                // 使用 easeOutQuart 缓动，让数字滚动更自然
+                const ease = 1 - Math.pow(1 - progress, 4);
+                const current = Math.floor(start + (target - start) * ease);
+                // 正数显示 + 号，负数保留 - 号
+                element.textContent = target >= 0 ? `+${current}` : current.toString();
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    element.textContent = target >= 0 ? `+${target}` : target.toString();
+                }
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        // ===================== 上传页逻辑 =====================
+
+        const fileInput = document.getElementById('fileInput');
+        const cameraInput = document.getElementById('cameraInput');
+        const uploadPreview = document.getElementById('uploadPreview');
+        const analysisImg = document.getElementById('analysisImg');
+
+        /**
+         * 调用手机相机拍照
+         */
+        function openCamera() {
+            cameraInput.click();
+        }
+
+        /**
+         * 调用手机相册选图
+         */
+        function openGallery() {
+            fileInput.click();
+        }
+
+        /**
+         * 处理文件选择结果
+         */
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                appState.currentImage = e.target.result;
+                // 在上传页显示预览
+                uploadPreview.innerHTML = `<img src="${appState.currentImage}" alt="预览">`;
+                // 在分析页显示同一张图
+                analysisImg.src = appState.currentImage;
+                // 进入分析页
+                goToPage('analysisPage');
+                // 延迟后开始 AI 分析
+                setTimeout(startAnalysis, 600);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        fileInput.addEventListener('change', handleFileSelect);
+        cameraInput.addEventListener('change', handleFileSelect);
+
+        // ===================== AI 分析逻辑 =====================
+        /**
+         * 开始分析：上传图片到后端 AI 接口，返回 wasteful/energy-saving/neutral
+         * 如果后端不可用，自动降级为本地启发式规则。
+         */
+        function startAnalysis() {
+            const img = new Image();
+            img.onload = async function() {
+                const features = extractImageFeatures(img);
+                updateAnalysisDetail(features);
+
+                // 先显示本地特征，再调用 AI
+                document.getElementById('analysisStatus').textContent = 'AI分析中...';
+
+                try {
+                    const result = await callAIAnalyze(appState.currentImage);
+                    showResult(result);
+                } catch (error) {
+                    console.warn('AI 接口调用失败，降级为本地规则：', error);
+                    // 降级方案：1 秒后用本地规则给出结果
+                    setTimeout(() => {
+                        const result = aiClassify(features);
+                        showResult(result);
+                    }, 1000);
+                }
+            };
+            img.src = appState.currentImage;
+        }
+
+        /**
+         * 调用后端 AI 分析接口
+         * @param {string} dataUrl - 图片的 base64 DataURL
+         */
+        async function callAIAnalyze(dataUrl) {
+            // 将 DataURL 转换为 Blob，再用 FormData 上传
+            const blob = dataURLtoBlob(dataUrl);
+            const formData = new FormData();
+            formData.append('image', blob, 'upload.jpg');
+
+            const response = await fetch(`${API_BASE_URL}/api/analyze`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.detail || `请求失败：${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.result;
+        }
+
+        /**
+         * 将 base64 DataURL 转换为 Blob 对象
+         */
+        function dataURLtoBlob(dataUrl) {
+            const arr = dataUrl.split(',');
+            const mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new Blob([u8arr], { type: mime });
+        }
+
+        /**
+         * 使用 Canvas 提取图像平均亮度、RGB分布、饱和度
+         * @param {HTMLImageElement} img
+         */
+        function extractImageFeatures(img) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            // 压缩图片以加速计算
+            const maxSize = 200;
+            const ratio = Math.min(maxSize / img.width, maxSize / img.height);
+            canvas.width = img.width * ratio;
+            canvas.height = img.height * ratio;
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            const pixelCount = data.length / 4;
+
+            let totalR = 0, totalG = 0, totalB = 0;
+            let totalBrightness = 0;
+            let totalSaturation = 0;
+
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+
+                totalR += r;
+                totalG += g;
+                totalB += b;
+
+                // HSL 亮度
+                const max = Math.max(r, g, b);
+                const min = Math.min(r, g, b);
+                const brightness = (max + min) / 2;
+                totalBrightness += brightness;
+
+                // HSL 饱和度
+                let saturation = 0;
+                if (max !== min) {
+                    saturation = brightness > 0.5
+                        ? (max - min) / (2 - max - min)
+                        : (max - min) / (max + min);
+                }
+                totalSaturation += saturation;
+            }
+
+            return {
+                avgR: totalR / pixelCount,
+                avgG: totalG / pixelCount,
+                avgB: totalB / pixelCount,
+                avgBrightness: totalBrightness / pixelCount,
+                avgSaturation: totalSaturation / pixelCount,
+                greenRatio: totalG / (totalR + totalG + totalB || 1)
+            };
+        }
+
+        /**
+         * 更新分析页细节文字
+         */
+        function updateAnalysisDetail(features) {
+            const detail = document.getElementById('analysisDetail');
+            detail.innerHTML = `
+                平均亮度：${features.avgBrightness.toFixed(1)}<br>
+                RGB 均值：R${features.avgR.toFixed(0)} G${features.avgG.toFixed(0)} B${features.avgB.toFixed(0)}<br>
+                平均饱和度：${(features.avgSaturation * 100).toFixed(1)}%<br>
+                绿色占比：${(features.greenRatio * 100).toFixed(1)}%
+            `;
+        }
+
+        /**
+         * AI 分类器（本地启发式模拟）
+         * 规则说明：
+         *   - 亮度高 + 饱和度高 → 可能为浪费（灯光明亮、色彩杂乱）
+         *   - 绿色占比高 + 亮度适中 → 节能（绿植、环保场景）
+         *   - 其他 → 中性
+         * 修改这里可替换为真实 AI 模型调用。
+         */
+        function aiClassify(features) {
+            // 示例规则：亮度过高且饱和度中等偏上 → 浪费
+            if (features.avgBrightness > 160 && features.avgSaturation > 0.25) {
+                return 'wasteful';
+            }
+            // 绿色占比高 → 节能
+            if (features.greenRatio > 0.38) {
+                return 'energy-saving';
+            }
+            // 偏暖色 + 高饱和 → 偏向节能/积极场景
+            if (features.avgR > features.avgB && features.avgSaturation > 0.3) {
+                return 'energy-saving';
+            }
+            return 'neutral';
+        }
+
+        /**
+         * 展示分析结果
+         */
+        function showResult(resultKey) {
+            appState.currentResult = resultKey;
+            const config = RESULT_CONFIG[resultKey];
+            appState.currentScore = config.score;
+
+            const resultCard = document.getElementById('resultCard');
+            // 移除旧 class
+            resultCard.classList.remove('wasteful', 'energy-saving', 'neutral');
+            // 添加新 class
+            resultCard.classList.add(config.class);
+
+            document.getElementById('resultEmoji').textContent = config.emoji;
+            document.getElementById('resultTitle').textContent = config.title;
+            document.getElementById('resultDesc').textContent = config.desc;
+
+            // 数字滚动显示积分
+            const scoreEl = document.getElementById('scoreValue');
+            animateNumber(scoreEl, config.score, 1200);
+
+            goToPage('resultPage');
+        }
+
+        // ===================== 地点页逻辑 =====================
+
+        /**
+         * 选择地点
+         */
+        function selectLocation(btn) {
+            // 清除其他选中状态
+            document.querySelectorAll('.btn-location').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            appState.selectedLocation = btn.dataset.location;
+            document.getElementById('confirmLocationBtn').disabled = false;
+        }
+
+        /**
+         * 确认地点，保存记录并进入数据页
+         */
+        function confirmLocation() {
+            if (!appState.selectedLocation) return;
+
+            // 构建一条记录
+            const record = {
+                timestamp: Date.now(),
+                date: new Date().toLocaleDateString('zh-CN'),
+                location: appState.selectedLocation,
+                result: appState.currentResult,
+                score: appState.currentScore
+            };
+
+            appState.records.push(record);
+            saveRecords();
+
+            goToPage('dataPage');
+        }
+
+        // ===================== 数据页逻辑 =====================
+
+        let heatmapChart = null;
+
+        /**
+         * 渲染数据页：积分、次数、ECharts 柱状图
+         */
+        function renderDataPage() {
+            // 统计积分与次数
+            let total = 0;
+            let energyCount = 0;
+            let wasteCount = 0;
+
+            // 按地点统计积分
+            const locationScores = {
+                '教学楼': 0,
+                '食堂': 0,
+                '宿舍': 0,
+                '图书馆': 0,
+                '其他': 0
+            };
+
+            appState.records.forEach(r => {
+                total += r.score;
+                if (r.result === 'energy-saving') energyCount++;
+                if (r.result === 'wasteful') wasteCount++;
+                if (locationScores.hasOwnProperty(r.location)) {
+                    locationScores[r.location] += r.score;
+                }
+            });
+
+            // 数字滚动动画
+            animateNumber(document.getElementById('totalScore'), total, 1000);
+            animateNumber(document.getElementById('countValue'), appState.records.length, 1000);
+            animateNumber(document.getElementById('energyValue'), energyCount, 1000);
+            animateNumber(document.getElementById('wasteValue'), wasteCount, 1000);
+
+            // 初始化或更新 ECharts
+            initHeatmapChart(locationScores);
+        }
+
+        /**
+         * 初始化 ECharts 校园热力柱状图
+         */
+        function initHeatmapChart(locationScores) {
+            const chartDom = document.getElementById('heatmapChart');
+            if (!heatmapChart) {
+                heatmapChart = echarts.init(chartDom);
+            }
+
+            const locations = Object.keys(locationScores);
+            const values = Object.values(locationScores);
+
+            // 修改这里换图表标题
+            const option = {
+                title: {
+                    text: '校园低碳热力图',
+                    left: 'center',
+                    textStyle: { color: '#2c3e50', fontSize: 16 }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    formatter: '{b}: {c} 积分'
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: locations,
+                    axisLabel: { color: '#7f8c8d' },
+                    axisLine: { lineStyle: { color: '#d5f5e3' } }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '积分',
+                    axisLabel: { color: '#7f8c8d' },
+                    splitLine: { lineStyle: { color: '#f0f9f4' } }
+                },
+                series: [{
+                    data: values.map((val, index) => ({
+                        value: val,
+                        itemStyle: {
+                            // 根据正负值显示不同颜色
+                            color: val >= 0
+                                ? new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                    { offset: 0, color: '#2ecc71' },
+                                    { offset: 1, color: '#27ae60' }
+                                ])
+                                : new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                    { offset: 0, color: '#e74c3c' },
+                                    { offset: 1, color: '#c0392b' }
+                                ])
+                        }
+                    })),
+                    type: 'bar',
+                    barWidth: '50%',
+                    label: {
+                        show: true,
+                        position: 'top',
+                        color: '#2c3e50',
+                        formatter: '{c}'
+                    },
+                    animationDuration: 1000,
+                    animationEasing: 'elasticOut'
+                }]
+            };
+
+            heatmapChart.setOption(option);
+        }
+
+        // ===================== URL 参数支持 =====================
+        /**
+         * 读取 URL 参数，支持 ?result=wasteful/energy-saving/neutral 直接跳转到结果页
+         */
+        function handleUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            const result = params.get('result');
+
+            if (result && RESULT_CONFIG[result]) {
+                // 设置一张默认占位图（避免分析页空白）
+                appState.currentImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2Q1ZjVlMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjI0IiBmaWxsPSIjMjdhZTYwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+5YWs5a+55Y+344CCPC90ZXh0Pjwvc3ZnPg==';
+                analysisImg.src = appState.currentImage;
+                showResult(result);
+            }
+        }
+
+        // ===================== 初始化 =====================
+        window.addEventListener('DOMContentLoaded', () => {
+            handleUrlParams();
+        });
+
+        // 窗口大小变化时重绘图表
+        window.addEventListener('resize', () => {
+            if (heatmapChart) heatmapChart.resize();
+        });
+    </script>
+</body>
+</html>

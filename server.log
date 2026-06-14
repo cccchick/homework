@@ -1,0 +1,7 @@
+
+> lowcarbon-snap@1.0.0 start
+> node server.js
+
+低碳随手拍服务已启动：http://localhost:3000
+使用模型：gpt-4o-mini
+API 地址：https://api.openai.com/v1
