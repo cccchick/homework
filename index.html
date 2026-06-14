@@ -834,8 +834,9 @@
             reader.onload = async function(e) {
                 const originalDataUrl = e.target.result;
                 // 手机照片通常很大，先压缩再上传，避免网络超时
+                // 修改这里调整压缩尺寸：越小上传越快，但 AI 识别精度可能略降
                 document.getElementById('analysisStatus').textContent = '正在压缩图片...';
-                appState.currentImage = await compressImage(originalDataUrl, 1280, 0.85);
+                appState.currentImage = await compressImage(originalDataUrl, 800, 0.75);
 
                 // 在上传页显示预览
                 uploadPreview.innerHTML = `<img src="${appState.currentImage}" alt="预览">`;
@@ -871,10 +872,20 @@
                     showResult(result);
                 } catch (error) {
                     console.warn('AI 接口调用失败，降级为本地规则：', error);
-                    const statusText = error.name === 'AbortError'
-                        ? '网络超时，使用本地分析...'
-                        : 'AI 服务异常，使用本地分析...';
+                    const isTimeout = error.name === 'AbortError';
+                    const statusText = isTimeout
+                        ? '分析超时，使用本地规则...'
+                        : 'AI 服务异常，使用本地规则...';
                     document.getElementById('analysisStatus').textContent = statusText;
+
+                    // 在分析详情区域显示错误信息，方便手机端排查
+                    const detailEl = document.getElementById('analysisDetail');
+                    detailEl.innerHTML = `
+                        ${detailEl.innerHTML}
+                        <div style="margin-top: 12px; color: #e74c3c; font-size: 12px;">
+                            调试信息：${isTimeout ? '请求超时' : (error.message || '未知错误')}
+                        </div>
+                    `;
 
                     // 降级方案：1.5 秒后用本地规则给出结果
                     setTimeout(() => {
@@ -891,18 +902,18 @@
          * @param {string} dataUrl - 图片的 base64 DataURL
          */
         async function callAIAnalyze(dataUrl) {
-            document.getElementById('analysisStatus').textContent = '正在上传图片...';
+            document.getElementById('analysisStatus').textContent = '正在上传图片到服务器...';
 
             // 将 DataURL 转换为 Blob，再用 FormData 上传
             const blob = dataURLtoBlob(dataUrl);
             const formData = new FormData();
             formData.append('image', blob, 'upload.jpg');
 
-            document.getElementById('analysisStatus').textContent = 'AI分析中，请稍候...';
+            document.getElementById('analysisStatus').textContent = '正在调用 Kimi AI 分析...';
 
-            // 设置 30 秒超时，防止手机网络慢导致一直卡住
+            // 设置 60 秒超时，手机上传可能较慢
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const timeoutId = setTimeout(() => controller.abort(), 60000);
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/analyze`, {
