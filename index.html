@@ -831,8 +831,12 @@
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
-                appState.currentImage = e.target.result;
+            reader.onload = async function(e) {
+                const originalDataUrl = e.target.result;
+                // 手机照片通常很大，先压缩再上传，避免网络超时
+                document.getElementById('analysisStatus').textContent = '正在压缩图片...';
+                appState.currentImage = await compressImage(originalDataUrl, 1280, 0.85);
+
                 // 在上传页显示预览
                 uploadPreview.innerHTML = `<img src="${appState.currentImage}" alt="预览">`;
                 // 在分析页显示同一张图
@@ -867,11 +871,16 @@
                     showResult(result);
                 } catch (error) {
                     console.warn('AI 接口调用失败，降级为本地规则：', error);
-                    // 降级方案：1 秒后用本地规则给出结果
+                    const statusText = error.name === 'AbortError'
+                        ? '网络超时，使用本地分析...'
+                        : 'AI 服务异常，使用本地分析...';
+                    document.getElementById('analysisStatus').textContent = statusText;
+
+                    // 降级方案：1.5 秒后用本地规则给出结果
                     setTimeout(() => {
                         const result = aiClassify(features);
                         showResult(result);
-                    }, 1000);
+                    }, 1500);
                 }
             };
             img.src = appState.currentImage;
@@ -882,23 +891,38 @@
          * @param {string} dataUrl - 图片的 base64 DataURL
          */
         async function callAIAnalyze(dataUrl) {
+            document.getElementById('analysisStatus').textContent = '正在上传图片...';
+
             // 将 DataURL 转换为 Blob，再用 FormData 上传
             const blob = dataURLtoBlob(dataUrl);
             const formData = new FormData();
             formData.append('image', blob, 'upload.jpg');
 
-            const response = await fetch(`${API_BASE_URL}/api/analyze`, {
-                method: 'POST',
-                body: formData
-            });
+            document.getElementById('analysisStatus').textContent = 'AI分析中，请稍候...';
 
-            if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err.detail || `请求失败：${response.status}`);
+            // 设置 30 秒超时，防止手机网络慢导致一直卡住
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/analyze`, {
+                    method: 'POST',
+                    body: formData,
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err.detail || `请求失败：${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.result;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                throw error;
             }
-
-            const data = await response.json();
-            return data.result;
         }
 
         /**
@@ -914,6 +938,43 @@
                 u8arr[n] = bstr.charCodeAt(n);
             }
             return new Blob([u8arr], { type: mime });
+        }
+
+        /**
+         * 压缩图片：限制最大边长，降低质量，适合手机上传
+         * @param {string} dataUrl - 原始图片 DataURL
+         * @param {number} maxWidth - 最大边长（像素）
+         * @param {number} quality - 压缩质量 0~1
+         * @returns {Promise<string>} 压缩后的 DataURL
+         */
+        function compressImage(dataUrl, maxWidth = 1280, quality = 0.85) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = function() {
+                    let width = img.width;
+                    let height = img.height;
+
+                    // 等比例缩放
+                    if (width > height && width > maxWidth) {
+                        height = Math.round(height * maxWidth / width);
+                        width = maxWidth;
+                    } else if (height > maxWidth) {
+                        width = Math.round(width * maxWidth / height);
+                        height = maxWidth;
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // 手机照片用 JPEG 压缩，体积更小
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = reject;
+                img.src = dataUrl;
+            });
         }
 
         /**
