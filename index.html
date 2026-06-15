@@ -488,9 +488,8 @@
     </style>
 </head>
 <body>
-    <!-- 隐藏的文件输入框：用于拍照和选图 -->
+    <!-- 隐藏的文件输入框：用于拍照和选图（通过 JS 动态切换 capture 属性） -->
     <input type="file" id="fileInput" accept="image/*">
-    <input type="file" id="cameraInput" accept="image/*" capture="environment">
 
     <!-- ===================== 1. 欢迎页 ===================== -->
     <section class="page welcome-page active" id="welcomePage">
@@ -519,6 +518,11 @@
             <div class="card">
                 <h2 class="title">上传照片</h2>
                 <p class="subtitle">拍下身边的低碳或浪费现象</p>
+
+                <!-- 修改这里换提示文字 -->
+                <p style="font-size: 13px; color: var(--text-light); margin-bottom: 16px; line-height: 1.5;">
+                    💡 提示：若拍照按钮无法调用相机，请使用「选图」从相册上传，或用系统浏览器（Safari/Chrome）打开本页面。
+                </p>
 
                 <div class="upload-preview" id="uploadPreview">
                     <div class="upload-placeholder">
@@ -805,21 +809,28 @@
         // ===================== 上传页逻辑 =====================
 
         const fileInput = document.getElementById('fileInput');
-        const cameraInput = document.getElementById('cameraInput');
         const uploadPreview = document.getElementById('uploadPreview');
         const analysisImg = document.getElementById('analysisImg');
 
         /**
          * 调用手机相机拍照
+         * 先给 input 加上 capture 属性，再触发点击
          */
         function openCamera() {
-            cameraInput.click();
+            fileInput.removeAttribute('capture');
+            fileInput.setAttribute('capture', 'environment');
+            // 清空之前的选择，确保 change 事件能再次触发
+            fileInput.value = '';
+            fileInput.click();
         }
 
         /**
          * 调用手机相册选图
+         * 去掉 capture 属性，让浏览器显示相册选项
          */
         function openGallery() {
+            fileInput.removeAttribute('capture');
+            fileInput.value = '';
             fileInput.click();
         }
 
@@ -828,7 +839,10 @@
          */
         function handleFileSelect(event) {
             const file = event.target.files[0];
-            if (!file) return;
+            if (!file) {
+                console.warn('没有选择文件');
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -847,11 +861,13 @@
                 // 延迟后开始 AI 分析
                 setTimeout(startAnalysis, 600);
             };
+            reader.onerror = function() {
+                alert('读取图片失败，请重试');
+            };
             reader.readAsDataURL(file);
         }
 
         fileInput.addEventListener('change', handleFileSelect);
-        cameraInput.addEventListener('change', handleFileSelect);
 
         // ===================== AI 分析逻辑 =====================
         /**
