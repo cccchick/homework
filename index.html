@@ -925,7 +925,7 @@
             const formData = new FormData();
             formData.append('image', blob, 'upload.jpg');
 
-            document.getElementById('analysisStatus').textContent = '正在调用 AI 分析...';
+            document.getElementById('analysisStatus').textContent = '正在调用 Kimi AI 分析...';
 
             // 设置 60 秒超时，手机上传可能较慢
             const controller = new AbortController();
@@ -1162,7 +1162,7 @@
         let heatmapChart = null;
 
         /**
-         * 渲染数据页：积分、次数、ECharts 柱状图
+         * 渲染数据页：积分、次数、ECharts 地点行为分布图
          */
         function renderDataPage() {
             // 统计积分与次数
@@ -1170,8 +1170,15 @@
             let energyCount = 0;
             let wasteCount = 0;
 
-            // 按地点统计积分
-            const locationScores = {
+            // 按地点统计节约行为、浪费行为出现次数
+            const locationSavingCounts = {
+                '教学楼': 0,
+                '食堂': 0,
+                '宿舍': 0,
+                '图书馆': 0,
+                '其他': 0
+            };
+            const locationWasteCounts = {
                 '教学楼': 0,
                 '食堂': 0,
                 '宿舍': 0,
@@ -1181,10 +1188,17 @@
 
             appState.records.forEach(r => {
                 total += r.score;
-                if (r.result === 'energy-saving') energyCount++;
-                if (r.result === 'wasteful') wasteCount++;
-                if (locationScores.hasOwnProperty(r.location)) {
-                    locationScores[r.location] += r.score;
+                if (r.result === 'energy-saving') {
+                    energyCount++;
+                    if (locationSavingCounts.hasOwnProperty(r.location)) {
+                        locationSavingCounts[r.location]++;
+                    }
+                }
+                if (r.result === 'wasteful') {
+                    wasteCount++;
+                    if (locationWasteCounts.hasOwnProperty(r.location)) {
+                        locationWasteCounts[r.location]++;
+                    }
                 }
             });
 
@@ -1195,37 +1209,51 @@
             animateNumber(document.getElementById('wasteValue'), wasteCount, 1000);
 
             // 初始化或更新 ECharts
-            initHeatmapChart(locationScores);
+            initHeatmapChart(locationSavingCounts, locationWasteCounts);
         }
 
         /**
-         * 初始化 ECharts 校园热力柱状图
+         * 初始化 ECharts 地点行为分布柱状图
+         * 节约行为：绿色向上；浪费行为：红色向下（倒置）
          */
-        function initHeatmapChart(locationScores) {
+        function initHeatmapChart(locationSavingCounts, locationWasteCounts) {
             const chartDom = document.getElementById('heatmapChart');
             if (!heatmapChart) {
                 heatmapChart = echarts.init(chartDom);
             }
 
-            const locations = Object.keys(locationScores);
-            const values = Object.values(locationScores);
+            const locations = Object.keys(locationSavingCounts);
+            const savingValues = Object.values(locationSavingCounts);
+            const wasteValues = Object.values(locationWasteCounts).map(v => -v); // 倒置为负数
 
-            // 修改这里换图表标题
             const option = {
                 title: {
-                    text: '校园低碳热力图',
+                    text: '地点行为分布',
                     left: 'center',
                     textStyle: { color: '#2c3e50', fontSize: 16 }
                 },
                 tooltip: {
                     trigger: 'axis',
                     axisPointer: { type: 'shadow' },
-                    formatter: '{b}: {c} 积分'
+                    formatter: function(params) {
+                        let result = params[0].name + '<br/>';
+                        params.forEach(p => {
+                            const value = Math.abs(p.value);
+                            const label = p.seriesName;
+                            const marker = p.marker;
+                            result += `${marker} ${label}：${value} 次<br/>`;
+                        });
+                        return result;
+                    }
+                },
+                legend: {
+                    data: ['节约行为', '浪费行为'],
+                    bottom: 0
                 },
                 grid: {
                     left: '3%',
                     right: '4%',
-                    bottom: '3%',
+                    bottom: '10%',
                     containLabel: true
                 },
                 xAxis: {
@@ -1236,40 +1264,66 @@
                 },
                 yAxis: {
                     type: 'value',
-                    name: '积分',
-                    axisLabel: { color: '#7f8c8d' },
+                    name: '次数',
+                    minInterval: 1,
+                    axisLabel: {
+                        color: '#7f8c8d',
+                        formatter: function(value) {
+                            return Math.abs(value);
+                        }
+                    },
                     splitLine: { lineStyle: { color: '#f0f9f4' } }
                 },
-                series: [{
-                    data: values.map((val, index) => ({
-                        value: val,
+                series: [
+                    {
+                        name: '节约行为',
+                        type: 'bar',
+                        data: savingValues,
+                        barWidth: '35%',
+                        barGap: '20%',
                         itemStyle: {
-                            // 根据正负值显示不同颜色
-                            color: val >= 0
-                                ? new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                                    { offset: 0, color: '#2ecc71' },
-                                    { offset: 1, color: '#27ae60' }
-                                ])
-                                : new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                                    { offset: 0, color: '#e74c3c' },
-                                    { offset: 1, color: '#c0392b' }
-                                ])
-                        }
-                    })),
-                    type: 'bar',
-                    barWidth: '50%',
-                    label: {
-                        show: true,
-                        position: 'top',
-                        color: '#2c3e50',
-                        formatter: '{c}'
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: '#2ecc71' },
+                                { offset: 1, color: '#27ae60' }
+                            ])
+                        },
+                        label: {
+                            show: true,
+                            position: 'top',
+                            color: '#27ae60',
+                            formatter: function(p) {
+                                return p.value > 0 ? p.value : '';
+                            }
+                        },
+                        animationDuration: 1000,
+                        animationEasing: 'elasticOut'
                     },
-                    animationDuration: 1000,
-                    animationEasing: 'elasticOut'
-                }]
+                    {
+                        name: '浪费行为',
+                        type: 'bar',
+                        data: wasteValues,
+                        barWidth: '35%',
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: '#c0392b' },
+                                { offset: 1, color: '#e74c3c' }
+                            ])
+                        },
+                        label: {
+                            show: true,
+                            position: 'bottom',
+                            color: '#e74c3c',
+                            formatter: function(p) {
+                                return p.value < 0 ? Math.abs(p.value) : '';
+                            }
+                        },
+                        animationDuration: 1000,
+                        animationEasing: 'elasticOut'
+                    }
+                ]
             };
 
-            heatmapChart.setOption(option);
+            heatmapChart.setOption(option, true);
         }
 
         // ===================== URL 参数支持 =====================
