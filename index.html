@@ -709,7 +709,7 @@
                 emoji: '⚠️',
                 title: '发现浪费行为',
                 desc: '检测到长明灯、长流水或外卖盒堆积等现象，请注意节约资源。',
-                score: -10,
+                score: 5,
                 class: 'wasteful'
             },
             'energy-saving': {
@@ -925,7 +925,7 @@
             const formData = new FormData();
             formData.append('image', blob, 'upload.jpg');
 
-            document.getElementById('analysisStatus').textContent = '正在调用 Kimi AI 分析...';
+            document.getElementById('analysisStatus').textContent = '正在调用 AI 分析...';
 
             // 设置 60 秒超时，手机上传可能较慢
             const controller = new AbortController();
